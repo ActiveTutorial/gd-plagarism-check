@@ -1,5 +1,3 @@
-// gmd-api/enums.js
-
 const Gamemode = {
   0: 'Cube',
   1: 'Ship',
@@ -63,6 +61,19 @@ const InstantCountComparison = {
   2: 'Smaller',
 };
 
+// Map GMD keys to the enum name they should use.
+const keyToEnumMap = {
+  // Level start keys
+  kA2: 'Gamemode',
+  kA4: 'Speed',
+  // Object keys
+  '30': 'Easing',
+  '48': 'PulseMode',
+  '52': 'PulseTargetType',
+  '82': 'TouchToggleMode',
+  '88': 'InstantCountComparison',
+};
+
 module.exports = {
   Gamemode,
   Speed,
@@ -71,4 +82,5 @@ module.exports = {
   PulseTargetType,
   TouchToggleMode,
   InstantCountComparison,
+  keyToEnumMap,
 };

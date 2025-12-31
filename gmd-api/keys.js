@@ -1,5 +1,5 @@
-// Existing keys remain unchanged
 const keyNames = {
+  // Level start string keys
   kA1: 'AudioTrack',
   kA2: 'Gamemode',
   kA3: 'Mini Mode',

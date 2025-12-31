@@ -4,7 +4,7 @@ function parseColorString(str) {
   if (!str) return [];
   const colorTokens = str.split('|'); // channels separated by |
   return colorTokens.map(token => {
-    const parts = token.split('_'); // <- use underscore, not comma
+    const parts = token.split('_'); // key-value pairs separated by _
     const color = {};
 
     for (let i = 0; i < parts.length; i += 2) {

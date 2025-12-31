@@ -1,0 +1,2 @@
+- make keys for enums be stored in enum.js not main.js (done)
+- since the parsing is essentially the same for the start string and object string, generalize that

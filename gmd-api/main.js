@@ -1,48 +1,29 @@
-const fs = require('fs');
-const { execSync } = require('child_process');
-const zlib = require('zlib');
+const { loadGMDString } = require('./load');
 
 const { keyNames } = require('./keys');
 const { parseColorString } = require('./colors');
 const { parseValue } = require('./utils');
-const { Gamemode, Speed, Easing, PulseMode, PulseTargetType, TouchToggleMode, InstantCountComparison } = require('./enums');
+const { Gamemode, Speed, Easing, PulseMode, PulseTargetType, TouchToggleMode, InstantCountComparison, keyToEnumMap } = require('./enums');
 
 /**
  * Parses a GMD file and returns both Level Start and Object String
  * @param {string} filePath - path to the GMD file
  */
 function parseGMD(filePath) {
-  if (!fs.existsSync(filePath)) throw new Error(`File does not exist: ${filePath}`);
-
-  console.log(`Reading GMD file: ${filePath}`);
-  const xmlData = fs.readFileSync(filePath, 'utf8');
-
-  console.log('Extracting second <s> node from XML...');
-  const base64Gzip = execSync(`xmllint --xpath 'string(//s[2])' -`, { input: xmlData }).toString();
-
-  return parseLevel(base64Gzip);
+  const levelString = loadGMDString(filePath);
+  return parseLevel(levelString);
 }
 
-function parseLevel(base64Str) {
-  const standardBase64 = base64Str.replace(/_/g, '/').replace(/-/g, '+');
-  let buffer = Buffer.from(standardBase64, 'base64');
-
-  try {
-    buffer = zlib.gunzipSync(buffer);
-  } catch (e) {
-    console.log('Not gzipped, using raw buffer.');
-  }
-
-  const str = buffer.toString('utf8');
+function parseLevel(str) {
   const [levelStartPart, objectStringPart] = str.split(';', 2);
 
-  const levelStart = parseLevelStart(levelStartPart);
+  const levelStart = parseLevelStartString(levelStartPart);
   const objects = parseObjectString(objectStringPart);
 
   return { levelStart, objects };
 }
 
-function parseLevelStart(levelStartPart) {
+function parseLevelStartString(levelStartPart) {
   const tokens = levelStartPart.split(',');
   const levelStartObj = {};
 
@@ -51,10 +32,8 @@ function parseLevelStart(levelStartPart) {
     const rawValue = tokens[i + 1];
     const name = keyNames[key] || key;
 
-    let value;
-    if (key === 'kS38') {
-      value = parseColorString(rawValue);
-    } else {
+    let value = applySpecialTypes(key, rawValue);
+    if (value === undefined) {
       value = applyEnum(key, rawValue);
       if (value === rawValue) value = parseValue(rawValue);
     }
@@ -78,12 +57,10 @@ function parseObjectString(objectString) {
     for (let i = 0; i < tokens.length; i += 2) {
       const key = tokens[i];
       const rawValue = tokens[i + 1];
-      const name = keyNames[key] || key; // <-- now includes object string keys
+      const name = keyNames[key] || key;
 
-      let value;
-      if (key === '7' || key === '8' || key === '9') {
-        value = parseValue(rawValue);
-      } else {
+      let value = applySpecialTypes(key, rawValue);
+      if (value === undefined) {
         value = applyEnum(key, rawValue);
         if (value === rawValue) value = parseValue(rawValue);
       }
@@ -102,17 +79,43 @@ function parseObjectString(objectString) {
 /**
  * Apply enumerations for certain keys
  */
-function applyEnum(key, rawValue) {
-  switch (key) {
-    case 'kA2': return Gamemode[rawValue] || rawValue;
-    case 'kA4': return Speed[rawValue] ? { name: Speed[rawValue].name, actual: Speed[rawValue].actual } : rawValue;
-    case '30': return Easing[rawValue] || rawValue;
-    case '48': return PulseMode[rawValue] || rawValue;
-    case '52': return PulseTargetType[rawValue] || rawValue;
-    case '82': return TouchToggleMode[rawValue] || rawValue;
-    case '88': return InstantCountComparison[rawValue] || rawValue;
-    default: return rawValue;
+/**
+ * Handle special parsing for particular keys that need non-standard processing.
+ * Return the processed value, or undefined when no special handling applies.
+ */
+function applySpecialTypes(key, rawValue) {
+  // color string
+  if (key === 'kS38') {
+    return parseColorString(rawValue);
   }
+
+  return undefined;
+}
+
+function applyEnum(key, rawValue) {
+  // Determine which enum this key maps to (if any)
+  const enumName = keyToEnumMap[key];
+  if (!enumName) return rawValue;
+
+  // Grab the enum object by name
+  const enumObj = {
+    Gamemode,
+    Speed,
+    Easing,
+    PulseMode,
+    PulseTargetType,
+    TouchToggleMode,
+    InstantCountComparison,
+  }[enumName];
+
+  if (!enumObj) return rawValue;
+
+  // Speed requires special handling to include actual value
+  if (enumName === 'Speed') {
+    return enumObj[rawValue] ? { name: enumObj[rawValue].name, actual: enumObj[rawValue].actual } : rawValue;
+  }
+
+  return enumObj[rawValue] || rawValue;
 }
 
 module.exports = { parseGMD };

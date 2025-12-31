@@ -1,8 +1,8 @@
 const { loadGMDString } = require('./load');
 
-const { keyNames } = require('./keys');
+const { keyMapping } = require('./keys');
 const { parseColorString } = require('./colors');
-const { parseValue } = require('./utils');
+const { parseGuidelineString } = require('./guidlines');
 const Enums = require('./enums');
 
 /**
@@ -11,11 +11,14 @@ const Enums = require('./enums');
  */
 function parseGMD(filePath) {
   const levelString = loadGMDString(filePath);
+  console.log('\nLoaded Level String:', levelString);
   return parseLevel(levelString);
 }
 
 function parseLevel(str) {
-  const [levelStartPart, objectStringPart] = str.split(';', 2);
+  const index = str.indexOf(';');
+  const levelStartPart = index === -1 ? str : str.substring(0, index);
+  const objectStringPart = index === -1 ? '' : str.substring(index + 1);
 
   const levelStart = parseLevelStartString(levelStartPart);
   const objects = parseObjectString(objectStringPart);
@@ -56,17 +59,70 @@ function parseTokens(tokenSrt) {
   for (let i = 0; i < tokens.length; i += 2) {
     const key = tokens[i];
     const rawValue = tokens[i + 1];
-    const name = keyNames[key] || key;
-
-    let value = applySpecialTypes(key, rawValue);
-    if (value === undefined) {
-      value = applyEnum(key, rawValue);
-      if (value === rawValue) value = parseValue(rawValue);
+    const mapping = keyMapping[key];
+    if (!mapping) {
+      // Unknown key, store raw
+      obj[key] = rawValue;
+      continue;
     }
+    const name = mapping.name;
 
+    let value;
+    value = parseByType(mapping.type, key, rawValue);
     obj[name] = value;
   }
   return obj;
+}
+
+
+/**
+ * Parse a raw value according to the declared type in `keyMapping`.
+ * @param {string} type
+ * @param {string} key
+ * @param {string} rawValue
+ */
+function parseByType(type, key, rawValue) {
+  if (rawValue === undefined) return undefined;
+
+  // If the key maps to an enum (either via Enums map or the type string), use applyEnum
+  if (Enums.keyToEnumMap[key] || /\(enum\)$/.test(type)) {
+    return applyEnum(key, rawValue);
+  }
+
+  if (type === 'Color String') {
+    return parseColorString(rawValue);
+  }
+
+  if (type === 'Guideline String') {
+    return parseGuidelineString(rawValue);
+  }
+
+  if (type === 'string (base64)') {
+    try {
+      return Buffer.from(rawValue, 'base64').toString('utf8');
+    } catch (e) {
+      return rawValue;
+    }
+  }
+
+  if (type === 'integer array') {
+    if (!rawValue) return [];
+    return rawValue.split('.').filter(Boolean).map(v => Number(v));
+  }
+
+  if (type === 'bool') {
+    return rawValue === '1';
+  }
+
+  if (type === 'integer') {
+    return Number(rawValue);
+  }
+
+  if (type === 'float') {
+    return parseFloat(rawValue);
+  }
+
+  return rawValue;
 }
 
 

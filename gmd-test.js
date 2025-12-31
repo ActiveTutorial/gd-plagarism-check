@@ -1,7 +1,7 @@
 const path = require('path');
 const { parseGMD } = require('./gmd-api/main');
 
-const gmdFile = path.resolve(__dirname, '../one spike.gmd');
+const gmdFile = path.resolve(__dirname, '../one spike and block.gmd');
 
 try {
   const levelStart = parseGMD(gmdFile);

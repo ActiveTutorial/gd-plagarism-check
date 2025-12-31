@@ -3,7 +3,7 @@ const { loadGMDString } = require('./load');
 const { keyNames } = require('./keys');
 const { parseColorString } = require('./colors');
 const { parseValue } = require('./utils');
-const { Gamemode, Speed, Easing, PulseMode, PulseTargetType, TouchToggleMode, InstantCountComparison, keyToEnumMap } = require('./enums');
+const Enums = require('./enums');
 
 /**
  * Parses a GMD file and returns both Level Start and Object String
@@ -24,22 +24,7 @@ function parseLevel(str) {
 }
 
 function parseLevelStartString(levelStartPart) {
-  const tokens = levelStartPart.split(',');
-  const levelStartObj = {};
-
-  for (let i = 0; i < tokens.length; i += 2) {
-    const key = tokens[i];
-    const rawValue = tokens[i + 1];
-    const name = keyNames[key] || key;
-
-    let value = applySpecialTypes(key, rawValue);
-    if (value === undefined) {
-      value = applyEnum(key, rawValue);
-      if (value === rawValue) value = parseValue(rawValue);
-    }
-
-    levelStartObj[name] = value;
-  }
+  const levelStartObj = parseTokens(levelStartPart);
 
   console.log('\nParsed Level Start Object:');
   console.dir(levelStartObj, { depth: null });
@@ -51,24 +36,7 @@ function parseObjectString(objectString) {
   const objectTokens = objectString.split(';').filter(Boolean);
 
   const objects = objectTokens.map(objStr => {
-    const tokens = objStr.split(',');
-    const obj = {};
-
-    for (let i = 0; i < tokens.length; i += 2) {
-      const key = tokens[i];
-      const rawValue = tokens[i + 1];
-      const name = keyNames[key] || key;
-
-      let value = applySpecialTypes(key, rawValue);
-      if (value === undefined) {
-        value = applyEnum(key, rawValue);
-        if (value === rawValue) value = parseValue(rawValue);
-      }
-
-      obj[name] = value;
-    }
-
-    return obj;
+    return parseTokens(objStr);
   });
 
   console.log('\nParsed Objects:');
@@ -76,12 +44,37 @@ function parseObjectString(objectString) {
   return objects;
 }
 
+
 /**
- * Apply enumerations for certain keys
+ * Generic parser that accepts string of tokens
+ * and returns an object mapping keys -> parsed values.
+ * @param {string} tokenSrt - "key,val,key,val..." ahhh string
  */
+function parseTokens(tokenSrt) {
+  const tokens = tokenSrt.split(',');
+  const obj = {};
+  for (let i = 0; i < tokens.length; i += 2) {
+    const key = tokens[i];
+    const rawValue = tokens[i + 1];
+    const name = keyNames[key] || key;
+
+    let value = applySpecialTypes(key, rawValue);
+    if (value === undefined) {
+      value = applyEnum(key, rawValue);
+      if (value === rawValue) value = parseValue(rawValue);
+    }
+
+    obj[name] = value;
+  }
+  return obj;
+}
+
+
 /**
  * Handle special parsing for particular keys that need non-standard processing.
  * Return the processed value, or undefined when no special handling applies.
+ * @param {string} key
+ * @param {string} rawValue
  */
 function applySpecialTypes(key, rawValue) {
   // color string
@@ -92,21 +85,18 @@ function applySpecialTypes(key, rawValue) {
   return undefined;
 }
 
+/**
+ * Apply enumerations for certain keys
+ * @param {string} key
+ * @param {string|number} rawValue
+ */
 function applyEnum(key, rawValue) {
   // Determine which enum this key maps to (if any)
-  const enumName = keyToEnumMap[key];
+  const enumName = Enums.keyToEnumMap[key];
   if (!enumName) return rawValue;
 
   // Grab the enum object by name
-  const enumObj = {
-    Gamemode,
-    Speed,
-    Easing,
-    PulseMode,
-    PulseTargetType,
-    TouchToggleMode,
-    InstantCountComparison,
-  }[enumName];
+  const enumObj = Enums[enumName];
 
   if (!enumObj) return rawValue;
 

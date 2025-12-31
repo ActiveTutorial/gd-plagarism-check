@@ -74,7 +74,8 @@ const keyToEnumMap = {
   '88': 'InstantCountComparison',
 };
 
-module.exports = {
+// Export a single object containing all enums and the key mapping
+const Enums = {
   Gamemode,
   Speed,
   Easing,
@@ -84,3 +85,5 @@ module.exports = {
   InstantCountComparison,
   keyToEnumMap,
 };
+
+module.exports = Enums;

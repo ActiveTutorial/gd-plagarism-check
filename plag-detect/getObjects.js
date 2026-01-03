@@ -11,6 +11,7 @@ function classifyObjectId(id) {
 /**
  * Parse a GMD file and return simplified object list: { type, x, y }
  * @param {string} gmdFile - path to .gmd file
+ * @return {Array<{type: string, x: number, y: number}>}
  */
 function getObjects(gmdFile) {
   const result = parseGMD(gmdFile, { objectsOnly: true, keys: ['Object ID', 'X Position', 'Y Position'] });

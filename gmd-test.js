@@ -1,6 +1,7 @@
 const path = require('path');
 const { parseGMD } = require('./gmd-api/main');
 const { getObjects } = require('./plag-detect/getObjects');
+const { getID } = require('./gmd-api/load');
 
 const gmdFile = path.resolve(__dirname, '../one spike and block.gmd');
 
@@ -15,6 +16,15 @@ console.log('\nParsed Objects:');
 console.dir(result.objects, { depth: null });
 
 console.log('\nLevel parsing complete.');
+
+// Try to read and print the level id from the .gmd (second <i> node)
+try {
+	const id = getID(path.resolve(__dirname, '../fingerprint-test-lvls/polargeist.gmd'));
+	console.log('\nParsed Level ID:');
+	console.log(id);
+} catch (err) {
+	console.error('\ngetID error:', err && err.message ? err.message : err);
+}
 
 // If run directly, also run the simplified objects extractor and print JSON
 if (require.main === module) {

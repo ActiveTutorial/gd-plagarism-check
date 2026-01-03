@@ -3,10 +3,7 @@ const { loadGMDString } = require('./load');
 const { keyMapping } = require('./keys');
 const { parseByType } = require('./types');
 
-/**
- * Parses a GMD file and returns both Level Start and Object String
- * @param {string} filePath - path to the GMD file
- */
+
 /**
  * parseGMD
  * @param {string} filePath - path to the GMD file
@@ -52,11 +49,6 @@ function parseObjectString(objectString, options = {}) {
 }
 
 
-/**
- * Generic parser that accepts string of tokens
- * and returns an object mapping keys -> parsed values.
- * @param {string} tokenSrt - "key,val,key,val..." ahhh string
- */
 /**
  * Generic parser that accepts string of tokens
  * and returns an object mapping keys -> parsed values.

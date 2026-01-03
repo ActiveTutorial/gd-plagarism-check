@@ -1,11 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 
-const { addFromFile, detectFromFile } = require('./plag-detect/main');
-const { getID } = require('./gmd-api/load');
+const { addFromFile, detectFromFile } = require('../plag-detect/main');
+const { getID } = require('../gmd-api/load');
 
 // Directory that contains the sample .gmd levels (relative to repo root)
-const LEVEL_DIR = path.resolve(__dirname, '../fingerprint-test-lvls');
+const LEVEL_DIR = path.resolve(__dirname, '../../fingerprint-test-lvls');
 
 // Files to add to the DB (these will be added)
 const ADD_LEVEL_FILES = [

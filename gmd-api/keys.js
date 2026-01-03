@@ -1,4 +1,4 @@
-// Single mapping of keys to metadata objects (type and name)
+
 const keyMapping = {
   // Level start keys
   kA1: { name: 'AudioTrack', type: 'integer' },

@@ -1,49 +1,53 @@
 const { loadGMDString } = require('./load');
 
 const { keyMapping } = require('./keys');
-const { parseColorString } = require('./colors');
-const { parseGuidelineString } = require('./guidlines');
-const Enums = require('./enums');
+const { parseByType } = require('./types');
 
 /**
  * Parses a GMD file and returns both Level Start and Object String
  * @param {string} filePath - path to the GMD file
  */
-function parseGMD(filePath) {
+/**
+ * parseGMD
+ * @param {string} filePath - path to the GMD file
+ * @param {Object} [options]
+ * @param {boolean} [options.objectsOnly=false] - when true, skip parsing the level start portion
+ * @param {string[]} [options.keys] - when provided, only these parsed property names will be kept
+ *
+ * Note: `keys` refers to the final property names (the `mapping.name` values);
+ * for unknown keys (no mapping) the raw key string is used for comparison.
+ */
+function parseGMD(filePath, options = {}) {
   const levelString = loadGMDString(filePath);
-  console.log('\nLoaded Level String:', levelString);
-  return parseLevel(levelString);
+  const parsed = parseLevel(levelString, options);
+  // Return the raw level string along with parsed parts. Logging is the caller's responsibility.
+  return { levelString, ...parsed };
 }
 
-function parseLevel(str) {
+function parseLevel(str, options = {}) {
   const index = str.indexOf(';');
   const levelStartPart = index === -1 ? str : str.substring(0, index);
   const objectStringPart = index === -1 ? '' : str.substring(index + 1);
 
-  const levelStart = parseLevelStartString(levelStartPart);
-  const objects = parseObjectString(objectStringPart);
+  // If objectsOnly is true, don't parse the level start portion.
+  const levelStart = options.objectsOnly ? {} : parseLevelStartString(levelStartPart, options);
+  const objects = parseObjectString(objectStringPart, options);
 
   return { levelStart, objects };
 }
 
-function parseLevelStartString(levelStartPart) {
-  const levelStartObj = parseTokens(levelStartPart);
-
-  console.log('\nParsed Level Start Object:');
-  console.dir(levelStartObj, { depth: null });
+function parseLevelStartString(levelStartPart, options = {}) {
+  const levelStartObj = parseTokens(levelStartPart, options);
   return levelStartObj;
 }
 
-function parseObjectString(objectString) {
+function parseObjectString(objectString, options = {}) {
   if (!objectString) return [];
   const objectTokens = objectString.split(';').filter(Boolean);
 
   const objects = objectTokens.map(objStr => {
-    return parseTokens(objStr);
+    return parseTokens(objStr, options);
   });
-
-  console.log('\nParsed Objects:');
-  console.dir(objects, { depth: null });
   return objects;
 }
 
@@ -53,115 +57,39 @@ function parseObjectString(objectString) {
  * and returns an object mapping keys -> parsed values.
  * @param {string} tokenSrt - "key,val,key,val..." ahhh string
  */
-function parseTokens(tokenSrt) {
+/**
+ * Generic parser that accepts string of tokens
+ * and returns an object mapping keys -> parsed values.
+ * @param {string} tokenSrt - "key,val,key,val..."
+ * @param {Object} [options]
+ * @param {string[]} [options.keys] - when provided, only these property names will be kept
+ */
+function parseTokens(tokenSrt, options = {}) {
+  if (!tokenSrt) return {};
   const tokens = tokenSrt.split(',');
   const obj = {};
+  const allowed = options.keys ? new Set(options.keys) : null;
   for (let i = 0; i < tokens.length; i += 2) {
     const key = tokens[i];
     const rawValue = tokens[i + 1];
     const mapping = keyMapping[key];
-    if (!mapping) {
-      // Unknown key, store raw
-      obj[key] = rawValue;
+    const name = mapping ? mapping.name : key;
+
+    // If keys filter is provided, only keep allowed names
+    if (allowed && !allowed.has(name)) {
       continue;
     }
-    const name = mapping.name;
 
     let value;
-    value = parseByType(mapping.type, key, rawValue);
+    if (mapping) {
+      value = parseByType(mapping.type, key, rawValue);
+    } else {
+      // Unknown key, store raw value
+      value = rawValue;
+    }
     obj[name] = value;
   }
   return obj;
-}
-
-
-/**
- * Parse a raw value according to the declared type in `keyMapping`.
- * @param {string} type
- * @param {string} key
- * @param {string} rawValue
- */
-function parseByType(type, key, rawValue) {
-  if (rawValue === undefined) return undefined;
-
-  // If the key maps to an enum (either via Enums map or the type string), use applyEnum
-  if (Enums.keyToEnumMap[key] || /\(enum\)$/.test(type)) {
-    return applyEnum(key, rawValue);
-  }
-
-  if (type === 'Color String') {
-    return parseColorString(rawValue);
-  }
-
-  if (type === 'Guideline String') {
-    return parseGuidelineString(rawValue);
-  }
-
-  if (type === 'string (base64)') {
-    try {
-      return Buffer.from(rawValue, 'base64').toString('utf8');
-    } catch (e) {
-      return rawValue;
-    }
-  }
-
-  if (type === 'integer array') {
-    if (!rawValue) return [];
-    return rawValue.split('.').filter(Boolean).map(v => Number(v));
-  }
-
-  if (type === 'bool') {
-    return rawValue === '1';
-  }
-
-  if (type === 'integer') {
-    return Number(rawValue);
-  }
-
-  if (type === 'float') {
-    return parseFloat(rawValue);
-  }
-
-  return rawValue;
-}
-
-
-/**
- * Handle special parsing for particular keys that need non-standard processing.
- * Return the processed value, or undefined when no special handling applies.
- * @param {string} key
- * @param {string} rawValue
- */
-function applySpecialTypes(key, rawValue) {
-  // color string
-  if (key === 'kS38') {
-    return parseColorString(rawValue);
-  }
-
-  return undefined;
-}
-
-/**
- * Apply enumerations for certain keys
- * @param {string} key
- * @param {string|number} rawValue
- */
-function applyEnum(key, rawValue) {
-  // Determine which enum this key maps to (if any)
-  const enumName = Enums.keyToEnumMap[key];
-  if (!enumName) return rawValue;
-
-  // Grab the enum object by name
-  const enumObj = Enums[enumName];
-
-  if (!enumObj) return rawValue;
-
-  // Speed requires special handling to include actual value
-  if (enumName === 'Speed') {
-    return enumObj[rawValue] ? { name: enumObj[rawValue].name, actual: enumObj[rawValue].actual } : rawValue;
-  }
-
-  return enumObj[rawValue] || rawValue;
 }
 
 module.exports = { parseGMD };

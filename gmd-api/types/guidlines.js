@@ -1,4 +1,4 @@
-const { parseValue } = require('./utils');
+const { parseValue } = require('../utils');
 
 /**
  * Parse a guideline string formatted as:

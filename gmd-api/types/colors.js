@@ -1,4 +1,4 @@
-const { parseValue } = require('./utils');
+const { parseValue } = require('../utils');
 
 function parseColorString(str) {
   if (!str) return [];

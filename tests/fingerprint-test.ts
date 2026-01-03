@@ -27,45 +27,35 @@ const DB_PATH = path.join(__dirname, '..', 'plag-detect', 'fingerprints.bin');
 
 // Start fresh: remove existing DB so the test is deterministic
 if (fs.existsSync(DB_PATH)) {
-  try {
-    fs.unlinkSync(DB_PATH);
-    console.log('Removed existing DB at', DB_PATH);
-  } catch (err) {
-    console.error('Failed to remove DB:', err && (err as any).message ? (err as any).message : err);
-  }
+  fs.unlinkSync(DB_PATH);
+  console.log('Removed existing DB at', DB_PATH);
 }
 
 // Add each level to the plag-detect DB using its parsed id
 // (only add the intended files; the slightly-different polargeist will NOT be added)
 for (const file of ADD_LEVEL_FILES) {
-  try {
-    const id = getID(file as any);
-    console.log(`Adding ${path.basename(file)} as id=${id}`);
-    const addStart = process.hrtime.bigint();
-    addFromFile(id, file as any);
-    const addDurMs = Number(process.hrtime.bigint() - addStart) / 1e6;
-    console.log(`  added in ${addDurMs.toFixed(2)}ms.`);
-  } catch (err) {
-    console.error(`Failed to add ${file}:`, err && (err as any).message ? (err as any).message : err);
-  }
+  const id = getID(file as any);
+  console.log(`Adding ${path.basename(file)} as id=${id}`);
+  const addStart = process.hrtime.bigint();
+  addFromFile(file as any);
+  const addDurMs = Number(process.hrtime.bigint() - addStart) / 1e6;
+  console.log(`  added in ${addDurMs.toFixed(2)}ms.`);
 }
 
 // Run detection for each file and print matches
 console.log('\nDetection results:');
 for (const file of DETECT_LEVEL_FILES) {
-  try {
-    console.log('\nDetecting for', path.basename(file));
-    const detectStart = process.hrtime.bigint();
-    const matches = detectFromFile(file as any);
-    const detectDurMs = Number(process.hrtime.bigint() - detectStart) / 1e6;
-    console.log(`  detection took ${detectDurMs.toFixed(2)}ms.`);
-    if (matches.length === 0) {
-      console.log('  no matches');
-    } else {
-      for (const m of matches) console.log(`  match id=${m.id} score=${m.score.toFixed(4)}`);
+  console.log('\nDetecting for', path.basename(file));
+  const detectStart = process.hrtime.bigint();
+  const matches = detectFromFile(file as any);
+  const detectDurMs = Number(process.hrtime.bigint() - detectStart) / 1e6;
+  console.log(`  detection took ${detectDurMs.toFixed(2)}ms.`);
+  if (matches.length === 0) {
+    console.log('  no matches');
+  } else {
+    for (const m of matches) {
+      console.log(`  match id=${m.id} score=${m.score.toFixed(4)}`);
     }
-  } catch (err) {
-    console.error(`Detection failed for ${file}:`, err && (err as any).message ? (err as any).message : err);
   }
 }
 

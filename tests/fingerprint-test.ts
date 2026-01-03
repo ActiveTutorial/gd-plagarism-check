@@ -1,8 +1,9 @@
-const fs = require('fs');
-const path = require('path');
+import 'ts-node/register';
+import * as fs from 'fs';
+import * as path from 'path';
 
-const { addFromFile, detectFromFile } = require('../plag-detect/main');
-const { getID } = require('../gmd-api/load');
+import { addFromFile, detectFromFile } from '../plag-detect/main';
+import { getID } from '../gmd-api/load';
 
 // Directory that contains the sample .gmd levels (relative to repo root)
 const LEVEL_DIR = path.resolve(__dirname, '../../fingerprint-test-lvls');
@@ -30,7 +31,7 @@ if (fs.existsSync(DB_PATH)) {
     fs.unlinkSync(DB_PATH);
     console.log('Removed existing DB at', DB_PATH);
   } catch (err) {
-    console.error('Failed to remove DB:', err && err.message ? err.message : err);
+    console.error('Failed to remove DB:', err && (err as any).message ? (err as any).message : err);
   }
 }
 
@@ -38,14 +39,14 @@ if (fs.existsSync(DB_PATH)) {
 // (only add the intended files; the slightly-different polargeist will NOT be added)
 for (const file of ADD_LEVEL_FILES) {
   try {
-    const id = getID(file);
+    const id = getID(file as any);
     console.log(`Adding ${path.basename(file)} as id=${id}`);
     const addStart = process.hrtime.bigint();
-    addFromFile(id, file);
+    addFromFile(id, file as any);
     const addDurMs = Number(process.hrtime.bigint() - addStart) / 1e6;
     console.log(`  added in ${addDurMs.toFixed(2)}ms.`);
   } catch (err) {
-    console.error(`Failed to add ${file}:`, err && err.message ? err.message : err);
+    console.error(`Failed to add ${file}:`, err && (err as any).message ? (err as any).message : err);
   }
 }
 
@@ -55,7 +56,7 @@ for (const file of DETECT_LEVEL_FILES) {
   try {
     console.log('\nDetecting for', path.basename(file));
     const detectStart = process.hrtime.bigint();
-    const matches = detectFromFile(file);
+    const matches = detectFromFile(file as any);
     const detectDurMs = Number(process.hrtime.bigint() - detectStart) / 1e6;
     console.log(`  detection took ${detectDurMs.toFixed(2)}ms.`);
     if (matches.length === 0) {
@@ -64,9 +65,8 @@ for (const file of DETECT_LEVEL_FILES) {
       for (const m of matches) console.log(`  match id=${m.id} score=${m.score.toFixed(4)}`);
     }
   } catch (err) {
-    console.error(`Detection failed for ${file}:`, err && err.message ? err.message : err);
+    console.error(`Detection failed for ${file}:`, err && (err as any).message ? (err as any).message : err);
   }
 }
 
-// Export nothing - this script is intended to be run directly
-module.exports = {};
+export {};

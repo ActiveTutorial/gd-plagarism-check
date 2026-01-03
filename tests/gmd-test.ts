@@ -1,13 +1,12 @@
-// Enable ts-node so we can require TypeScript modules directly in this test
-require('ts-node').register({ transpileOnly: true });
-const path = require('path');
-const { parseGMD } = require('../gmd-api/main.ts');
-const { getObjects } = require('../plag-detect/getObjects');
-const { getID } = require('../gmd-api/load.ts');
+import 'ts-node/register';
+import * as path from 'path';
+import { parseGMD } from '../gmd-api/main';
+import { getObjects } from '../plag-detect/getObjects';
+import { getID } from '../gmd-api/load';
 
 const gmdFile = path.resolve(__dirname, '../../fingerprint-test-lvls/back-on-track.gmd');
 
-const result = parseGMD(gmdFile);
+const result = parseGMD(gmdFile as any);
 console.log('\nLoaded Level String:');
 console.log(result.levelString);
 
@@ -20,12 +19,14 @@ console.dir(result.objects, { depth: null });
 console.log('\nLevel parsing complete.');
 
 // Test getID function
-const id = getID(gmdFile);
+const id = getID(gmdFile as any);
 console.log('\nParsed Level ID:');
 console.log(id);
 
 
 // Test getObjects function
-const items = getObjects(gmdFile);
+const items = getObjects(gmdFile as any);
 console.log('\nObjects from getObjects():');
 console.log(JSON.stringify(items, null, 2));
+
+export {};

@@ -1,45 +1,8 @@
-const fs = require("fs");
-const path = require("path");
 const { getObjects } = require("./getObjects");
-
-const DB_PATH = path.join(__dirname, "fingerprints.bin");
-
-const TYPES = ["solid", "hazard", "other", "none"];
-const TYPE_COUNT = TYPES.length;
-
-const BINS = 128;
-const BYTES_PER_BIN = 2;
-const FINGERPRINT_SIZE = TYPE_COUNT * BINS * BYTES_PER_BIN;
+const { loadDB, saveDB, TYPES, TYPE_COUNT, BINS, BYTES_PER_BIN, FINGERPRINT_SIZE } = require("./db");
 const SAMPLES = 4096;
 
-/* ---------- internal ---------- */
-
-function loadDB() {
-  if (!fs.existsSync(DB_PATH)) return {};
-  const raw = fs.readFileSync(DB_PATH);
-  const db = {};
-  let offset = 0;
-
-  while (offset < raw.length) {
-    const id = raw.readUInt32BE(offset);
-    offset += 4;
-    const fp = raw.slice(offset, offset + FINGERPRINT_SIZE);
-    offset += FINGERPRINT_SIZE;
-    db[id] = fp;
-  }
-  return db;
-}
-
-function saveDB(db) {
-  const buffers = [];
-  for (const id in db) {
-    const buf = Buffer.alloc(4 + FINGERPRINT_SIZE);
-    buf.writeUInt32BE(Number(id), 0);
-    db[id].copy(buf, 4);
-    buffers.push(buf);
-  }
-  fs.writeFileSync(DB_PATH, Buffer.concat(buffers));
-}
+// fingerprinting logic :sob:
 
 function centroidNormalize(objects) {
   let sx = 0, sy = 0;
@@ -114,10 +77,16 @@ function similarity(a, b) {
     nb += vb * vb;
   }
 
+  // Handle degenerate cases where one or both fingerprints are all-zeros.
+  // If both are zero-vectors they should be considered identical (score=1).
+  // If only one is zero, return 0 to avoid division-by-zero/NaN.
+  if (na === 0 && nb === 0) return 1;
+  if (na === 0 || nb === 0) return 0;
+
   return dot / (Math.sqrt(na) * Math.sqrt(nb));
 }
 
-/* ---------- exported API (file-based) ---------- */
+// exported API (file-based)
 
 function addFromFile(arrayId, gmdFile) {
   const db = loadDB();
@@ -126,7 +95,20 @@ function addFromFile(arrayId, gmdFile) {
   const objects = getObjects(gmdFile);
   const norm = centroidNormalize(objects);
   const fp = fingerprint(norm);
-
+  // Warn if parsing produced too few objects or an all-zero fingerprint.
+  if (!Array.isArray(objects) || objects.length < 2) {
+    console.warn(`WARNING: ${gmdFile} produced ${Array.isArray(objects) ? objects.length : 0} objects — fingerprint may be empty due to parsing issues.`);
+  } else {
+    let nonzero = 0, sum = 0;
+    for (let i = 0; i < fp.length; i += 2) {
+      const v = fp.readUInt16LE(i);
+      if (v !== 0) nonzero++;
+      sum += v;
+    }
+    if (nonzero === 0) {
+      console.warn(`WARNING: fingerprint for ${gmdFile} has no nonzero bins (sum=${sum}) — check XML parsing or object extraction.`);
+    }
+  }
   db[arrayId] = fp;
   saveDB(db);
 }
@@ -136,6 +118,21 @@ function detectFromFile(gmdFile, threshold = 0.85) {
   const objects = getObjects(gmdFile);
   const norm = centroidNormalize(objects);
   const fp = fingerprint(norm);
+
+  // Warn if parsing produced too few objects or an all-zero fingerprint for detection.
+  if (!Array.isArray(objects) || objects.length < 2) {
+    console.warn(`WARNING: ${gmdFile} produced ${Array.isArray(objects) ? objects.length : 0} objects during detection — results may be incomplete.`);
+  } else {
+    let nonzero = 0, sum = 0;
+    for (let i = 0; i < fp.length; i += 2) {
+      const v = fp.readUInt16LE(i);
+      if (v !== 0) nonzero++;
+      sum += v;
+    }
+    if (nonzero === 0) {
+      console.warn(`WARNING: detection fingerprint for ${gmdFile} has no nonzero bins (sum=${sum}) — check XML parsing or object extraction.`);
+    }
+  }
 
   const matches = [];
   for (const id in db) {

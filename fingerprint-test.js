@@ -11,12 +11,14 @@ const LEVEL_DIR = path.resolve(__dirname, '../fingerprint-test-lvls');
 const ADD_LEVEL_FILES = [
   'back-on-track.gmd',
   'polargeist.gmd',
-  'stereo-madness.gmd'
+  'stereo-madness.gmd',
+  'bloodbath.gmd',
 ].map(f => path.join(LEVEL_DIR, f));
 
 // Files to run detection on (includes an extra file that will NOT be added)
 const DETECT_LEVEL_FILES = ADD_LEVEL_FILES.concat([
-  path.join(LEVEL_DIR, 'polargeist-slightly-diffrent.gmd')
+  path.join(LEVEL_DIR, 'polargeist-slightly-diffrent.gmd'),
+  path.join(LEVEL_DIR, 'bloodbath-auto.gmd')
 ]);
 
 // The database file used by plag-detect is at plag-detect/fingerprints.bin
@@ -38,8 +40,10 @@ for (const file of ADD_LEVEL_FILES) {
   try {
     const id = getID(file);
     console.log(`Adding ${path.basename(file)} as id=${id}`);
+    const addStart = process.hrtime.bigint();
     addFromFile(id, file);
-    console.log('  added.');
+    const addDurMs = Number(process.hrtime.bigint() - addStart) / 1e6;
+    console.log(`  added in ${addDurMs.toFixed(2)}ms.`);
   } catch (err) {
     console.error(`Failed to add ${file}:`, err && err.message ? err.message : err);
   }
@@ -50,7 +54,10 @@ console.log('\nDetection results:');
 for (const file of DETECT_LEVEL_FILES) {
   try {
     console.log('\nDetecting for', path.basename(file));
+    const detectStart = process.hrtime.bigint();
     const matches = detectFromFile(file);
+    const detectDurMs = Number(process.hrtime.bigint() - detectStart) / 1e6;
+    console.log(`  detection took ${detectDurMs.toFixed(2)}ms.`);
     if (matches.length === 0) {
       console.log('  no matches');
     } else {
